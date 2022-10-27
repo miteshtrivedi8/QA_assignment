@@ -1,0 +1,83 @@
+                var request = require('Request');
+		var cheerio = require('cheerio');
+		var URL = require('url-parse');
+
+		var S_URL = "https://en.wikipedia.org/wiki/Main_Page";
+		var WORD_SEARCH = "stemming";
+		var MAX_PAGES = 10;
+
+		var No_of_Visited_pages = {};
+		var num_Pages_Visited = 0;
+		var pages_To_Visit = [];
+		var url = new URL(S_URL);
+		var baseUrl = url.protocol + "//" + url.hostname;
+
+		pages_To_Visit.push(S_URL);
+		crawl();
+
+		function crawl()
+		 {
+		  if(num_Pages_Visited >= MAX_PAGES) 
+			{
+		     console.log("Reached max limit of number of pages to visit.");
+		     return;
+		  }
+		  var nextPage = pages_To_Visit.pop();
+		  if (nextPage in pagesVisited) 
+		{
+
+		     // We've already visited this page, so repeat the crawl
+
+		     crawl();
+		        }
+			 else 
+			{
+
+		     // New page we haven't visited
+
+		     No_of_Visited_pages(nextPage, crawl);
+		 	 }
+		}
+
+		function visitPage(url, callback) 
+			{
+
+		  // Add page to our set
+
+		  No_of_Visited_pages[url] = true;
+		  num_Pages_Visited++;
+
+		  // Make the request
+		  console.log("Visiting page " + url);
+		  request(url, function(error, response, body) {
+		     // Check status code (200 is HTTP OK)
+		     console.log("Status code: " + response.statusCode);
+		     if(response.statusCode !== 200) {
+		        callback();
+		        return;
+		     }
+		     // Parse the document body
+		     var $ = cheerio.load(body);
+		     var isWordFound = searchForWord($, WORD_SEARCH);
+		     if(isWordFound) {
+		        console.log('Word ' + WORD_SEARCH + ' found at page ' + url);
+		     } else {
+		        collectInternalLinks($);
+		        // In this short program, our callback is just calling crawl()
+		        callback();
+		     }
+		  });
+		}
+
+		function searchForWord($, word) {
+		  var bodyText = $('html > body').text().toLowerCase();
+		  return(bodyText.indexOf(word.toLowerCase()) !== -1);
+		}
+
+		function collectInternalLinks($) {
+		   var relativeLinks = $("a[href^='/']");
+		   console.log("Found " + relativeLinks.length + " relative links on page");
+		   relativeLinks.each(function() {
+		       pages_To_Visit.push(baseUrl + $(this).attr('href'));
+		   });
+		}
